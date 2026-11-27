@@ -99,6 +99,11 @@ export function WorldScene({controls,onNearby}:Props) {
      const rr=rock.s+.38;
      if(dx*dx+dz*dz<rr*rr) return true;
    }
+   for(const bush of bushes){
+     const dx=x-bush.p[0], dz=z-bush.p[2];
+     const rr=.42*bush.s+.38;
+     if(dx*dx+dz*dz<rr*rr) return true;
+   }
    // The NPC and lamp posts are solid world objects too.
    if(Math.hypot(x-2,z+8)<.62) return true;
    for(const lamp of [[-5,-18],[6,-36]]){
