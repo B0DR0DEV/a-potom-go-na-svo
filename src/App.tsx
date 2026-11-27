@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Backpack, Compass, DoorOpen, Gamepad2, Map, MessageCircle, Settings, Volume2, VolumeX, X, Maximize2, Minimize2, RotateCcw, Footprints, Save, BookOpen, CheckCircle2 } from 'lucide-react';
+import { Backpack, DoorOpen, Gamepad2, Map, MessageCircle, Settings, Volume2, VolumeX, X, Maximize2, Minimize2, RotateCcw, Save, BookOpen, CheckCircle2 } from 'lucide-react';
 import { WorldScene, type ControlsState } from './game/WorldScene';
 
 type Stage = 0 | 1 | 2 | 3;
