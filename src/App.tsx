@@ -10,7 +10,7 @@ const SAVE_KEY = 'apotom-save-v1';
 const missions = [
   { title: 'Осмотрись вокруг', detail: 'Найди местного жителя у дороги и поговори с ним.', target: 'Местный житель', reward: 'Записка с адресом' },
   { title: 'Найди медпункт', detail: 'Доберись до дома с зелёной дверью и осмотри его.', target: 'Дом с зелёной дверью', reward: 'Старая фотография' },
-  { title: 'Изучи находку', detail: 'Осмотри окрестности и вернись к дому с зелёной дверью.', target: 'Медпункт', reward: 'Ключ от задней комнаты' },
+  { title: 'Раскрой тайну фотографии', detail: 'Вернись к местному жителю и покажи ему найденную фотографию.', target: 'Местный житель', reward: 'Ключ от задней комнаты' },
   { title: 'Глава завершена', detail: 'Ты раскрыл первую часть истории. Исследуй посёлок и сохрани прогресс.', target: 'Посёлок', reward: 'Глава I' }
 ];
 const initialSave: SaveData = { stage: 0, items: [], played: false };
@@ -70,11 +70,11 @@ export default function App() {
     } else if (save.stage === 1 && nearHouse) {
       setSave(s => ({ ...s, stage: 2, items: [...new Set([...s.items, 'Старая фотография'])] }));
       notify('Ты нашёл старую фотографию. На обороте есть дата и короткая надпись.');
-    } else if (save.stage === 2 && nearHouse) {
+    } else if (save.stage === 2 && nearNpc) {
       setSave(s => ({ ...s, stage: 3, items: [...new Set([...s.items, 'Ключ от задней комнаты'])] }));
-      notify('Первая глава завершена. Получен ключ. Прогресс сохранён.');
-    } else if (save.stage === 3 && nearNpc) {
-      notify('Местный кивает: «Теперь ты знаешь чуть больше. Береги найденное».');
+      notify('Житель узнаёт фотографию и отдаёт тебе старый ключ. Первая глава завершена!');
+    } else if (save.stage === 3) {
+      notify('Глава I завершена. Ты можешь продолжить исследовать посёлок.');
     } else notify('Подойди к персонажу или дому, отмеченному текущей задачей.');
   }, [save.stage, nearNpc, nearHouse, notify]);
 
@@ -105,7 +105,7 @@ export default function App() {
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
   }, [screen, panel, interact]);
 
-  const canInteract = (save.stage === 0 && nearNpc) || (save.stage > 0 && nearHouse) || (save.stage === 3 && nearNpc);
+  const canInteract = (save.stage === 0 && nearNpc) || (save.stage === 1 && nearHouse) || (save.stage === 2 && nearNpc) || (save.stage === 3 && (nearNpc || nearHouse));
   const start = () => { setSave(s => ({ ...s, played: true })); setScreen('game'); };
   const reset = () => { if (window.confirm('Начать историю заново? Текущий прогресс будет удалён.')) { setSave(initialSave); setPanel('none'); notify('Новая игра начата.'); } };
 
