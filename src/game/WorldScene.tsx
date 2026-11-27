@@ -94,6 +94,16 @@ export function WorldScene({controls,onNearby}:Props) {
    for(const f of FENCES){
      if(x>=f.x-radius && x<=f.x+f.length+radius && Math.abs(z-f.z)<.32) return true;
    }
+   for(const rock of rocks){
+     const dx=x-rock.p[0], dz=z-rock.p[2];
+     const rr=rock.s+.38;
+     if(dx*dx+dz*dz<rr*rr) return true;
+   }
+   // The NPC and lamp posts are solid world objects too.
+   if(Math.hypot(x-2,z+8)<.62) return true;
+   for(const lamp of [[-5,-18],[6,-36]]){
+     if(Math.hypot(x-lamp[0],z-lamp[1])<.42) return true;
+   }
    return false;
  };
  useFrame((_,rawDelta)=>{
