@@ -4,7 +4,7 @@ import { Environment, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 
 export type ControlsState = { forward: number; strafe: number; lookX: number; lookY: number };
-type Props = { controls: MutableRefObject<ControlsState>; stage: number; onNearby: (npc: boolean, house: boolean) => void };
+type Props = { controls: MutableRefObject<ControlsState>; onNearby: (npc: boolean, house: boolean) => void };
 
 function House({ position, scale = 1, tone = '#827e70', greenDoor = false }: { position: [number,number,number]; scale?: number; tone?: string; greenDoor?: boolean }) {
   return <group position={position} scale={scale}>
@@ -31,7 +31,7 @@ function Person({ position }: { position: [number,number,number] }) {
 function Lamp({position}:{position:[number,number,number]}) {
  return <group position={position}><mesh position={[0,2.4,0]}><cylinderGeometry args={[.07,.11,4.8,7]}/><meshStandardMaterial color="#3e443e" metalness={.5}/></mesh><mesh position={[.55,4.7,0]} rotation={[0,0,-.18]}><boxGeometry args={[1.2,.09,.09]}/><meshStandardMaterial color="#3e443e"/></mesh><mesh position={[1.05,4.58,0]}><boxGeometry args={[.35,.14,.3]}/><meshStandardMaterial color="#d5c99c" emissive="#8d8053" emissiveIntensity={.35}/></mesh></group>;
 }
-export function WorldScene({controls,stage,onNearby}:Props) {
+export function WorldScene({controls,onNearby}:Props) {
  const {camera}=useThree(); const yaw=useRef(0); const pitch=useRef(0); const lastNear=useRef('');
  const trees=useMemo(()=>Array.from({length:145},(_,i)=>{const a=i*2.399;const r=23+(i%13)*3.1;return {p:[Math.cos(a)*r,0,Math.sin(a)*r] as [number,number,number],h:5+(i%6)*.55};}),[]);
  const stones=useMemo(()=>Array.from({length:90},(_,i)=>({p:[Math.sin(i*7.1)*35,.12,Math.cos(i*3.7)*40] as [number,number,number],s:.15+(i%4)*.12})),[]);
