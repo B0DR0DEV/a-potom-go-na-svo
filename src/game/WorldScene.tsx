@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Sky } from '@react-three/drei';
 import * as THREE from 'three';
 
-export type ControlsState = { forward: number; strafe: number; lookX: number; lookY: number };
+export type ControlsState = { forward: number; strafe: number; lookX: number; lookY: number; sprint: number; jump: number };
 type Props = { controls: MutableRefObject<ControlsState>; onNearby: (npc: boolean, house: boolean) => void };
 
 const HOUSES = [
@@ -76,7 +76,7 @@ function Cloud({position,scale=1}:{position:[number,number,number];scale?:number
 }
 export function WorldScene({controls,onNearby}:Props) {
  const {camera}=useThree();
- const yaw=useRef(0); const pitch=useRef(0); const lastNear=useRef('');
+ const yaw=useRef(0); const pitch=useRef(0); const lastNear=useRef(''); const verticalVelocity=useRef(0); const grounded=useRef(true);
  const trees=useMemo(()=>Array.from({length:125},(_,i)=>{const a=i*2.399;const r=25+(i%13)*2.8;return {p:[Math.cos(a)*r,0,Math.sin(a)*r] as [number,number,number],h:5+(i%6)*.55};}),[]);
  const bushes=useMemo(()=>Array.from({length:52},(_,i)=>({p:[Math.sin(i*12.7)*31,0,Math.cos(i*8.3)*38] as [number,number,number],s:.65+(i%4)*.18})),[]);
  const rocks=useMemo(()=>Array.from({length:75},(_,i)=>({p:[Math.sin(i*7.1)*39,.1,Math.cos(i*3.7)*43] as [number,number,number],s:.18+(i%4)*.13})),[]);
@@ -113,7 +113,7 @@ export function WorldScene({controls,onNearby}:Props) {
    pitch.current=THREE.MathUtils.clamp(pitch.current-c.lookY*.0022,-1.2,1.2);
    c.lookX=0;c.lookY=0;
    camera.rotation.order='YXZ';camera.rotation.y=yaw.current;camera.rotation.x=pitch.current;
-   const speed=7.2*delta, forward=c.forward, strafe=c.strafe;
+   const speed=(c.sprint ? 10.2 : 6.2)*delta, forward=c.forward, strafe=c.strafe;
    const dx=(Math.sin(yaw.current)*forward+Math.cos(yaw.current)*strafe)*speed;
    const dz=(-Math.cos(yaw.current)*forward+Math.sin(yaw.current)*strafe)*speed;
    const nextX=THREE.MathUtils.clamp(camera.position.x+dx,-82,82);
@@ -121,7 +121,7 @@ export function WorldScene({controls,onNearby}:Props) {
    // Resolve each axis separately so the player can slide along walls and fences.
    if(!collides(nextX,camera.position.z)) camera.position.x=nextX;
    if(!collides(camera.position.x,nextZ)) camera.position.z=nextZ;
-   camera.position.y=1.7;
+   if(c.jump && grounded.current){verticalVelocity.current=6.2;grounded.current=false;}\n   verticalVelocity.current-=17*delta;\n   camera.position.y+=verticalVelocity.current*delta;\n   if(camera.position.y<=1.7){camera.position.y=1.7;verticalVelocity.current=0;grounded.current=true;}\n   c.jump=0;
    const npc=Math.hypot(camera.position.x-2,camera.position.z+8)<3.2;
    const house=Math.hypot(camera.position.x-10,camera.position.z+24)<4.4;
    const signature=(npc?'n':'')+(house?'h':'');
@@ -130,9 +130,9 @@ export function WorldScene({controls,onNearby}:Props) {
  return <>
   <color attach="background" args={['#b9c9c8']}/><fog attach="fog" args={['#b9c9c8',48,155]}/>
   <Sky sunPosition={[35,14,-20]} turbidity={7.2} rayleigh={1.8} mieCoefficient={.004} mieDirectionalG={.82}/>
-  <ambientLight intensity={.48}/><hemisphereLight args={['#dce8e7','#59634f',.9]}/>
-  <directionalLight position={[25,38,15]} intensity={2.25} castShadow shadow-mapSize={[1536,1536]} shadow-camera-far={120} shadow-camera-left={-55} shadow-camera-right={55} shadow-camera-top={55} shadow-camera-bottom={-55}/>
-  <mesh rotation={[-Math.PI/2,0,0]} receiveShadow><planeGeometry args={[220,220]}/><meshStandardMaterial color="#68795b" roughness={1}/></mesh>
+  <ambientLight intensity={.62}/><hemisphereLight args={['#dce8e7','#59634f',1.05]}/>
+  <directionalLight position={[25,38,15]} intensity={2.5} castShadow shadow-mapSize={[1536,1536]} shadow-camera-far={120} shadow-camera-left={-55} shadow-camera-right={55} shadow-camera-top={55} shadow-camera-bottom={-55}/>
+  <mesh rotation={[-Math.PI/2,0,0]} receiveShadow><planeGeometry args={[220,220]}/><meshStandardMaterial color="#718361" roughness={1}/></mesh>\n  {Array.from({length:180},(_,i)=><mesh key={'grass'+i} position={[Math.sin(i*17.3)*78,.035,Math.cos(i*11.7)*78]} rotation={[-Math.PI/2,0,(i%7)*.4]}><circleGeometry args={[.07+(i%3)*.035,5]}/><meshStandardMaterial color={i%2?'#87936b':'#596e4e'} roughness={1}/></mesh>)}
   <Road/>
   <House position={[-10,0,-12]} scale={1.05} tone="#77776d"/>
   <House position={[10,0,-24]} scale={1.15} tone="#817b6b" greenDoor/>
