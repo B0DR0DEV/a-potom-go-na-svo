@@ -60,7 +60,7 @@ export default function App() {
   const canInteract = (stage === 0 && nearNpc) || (stage > 0 && nearHouse);
   return <main className="app-shell">
     <div className="world-backdrop"><Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 1.7, 9], fov: 72 }}>
-      <WorldScene controls={controls} stage={stage} onNearby={(npc, house) => { setNearNpc(npc); setNearHouse(house); }} />
+      <WorldScene controls={controls} onNearby={(npc, house) => { setNearNpc(npc); setNearHouse(house); }} />
     </Canvas></div>
     {screen === 'menu' ? <section className="menu-screen">
       <div className="topline"><span className="status-dot" /><span>СЮЖЕТНОЕ ПРИКЛЮЧЕНИЕ</span><span className="topline-right">BUILD 0.2.0 · EARLY ACCESS</span></div>
