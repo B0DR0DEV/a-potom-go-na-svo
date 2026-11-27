@@ -1,6 +1,6 @@
 import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Compass, DoorOpen, Gamepad2, Settings, Volume2, VolumeX, Backpack, MessageCircle, Map, X } from 'lucide-react';
+import { Compass, DoorOpen, Gamepad2, Settings, Volume2, VolumeX, Backpack, MessageCircle, Map, X, Maximize2, Minimize2 } from 'lucide-react';
 import { WorldScene, type ControlsState } from './game/WorldScene';
 
 type Stage = 0 | 1 | 2;
@@ -34,6 +34,24 @@ export default function App() {
   const controls = useRef<ControlsState>({ forward: 0, strafe: 0, lookX: 0, lookY: 0 });
   const lookPointer = useRef<{x:number;y:number}|null>(null);
   const [portrait, setPortrait] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const update = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', update);
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, []);
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.querySelector('.app-shell')?.requestFullscreen?.();
+    } catch (error) {
+      console.warn('Fullscreen is unavailable in this browser:', error);
+      setToast('Полный экран недоступен в этом браузере. Попробуй добавить игру на главный экран.');
+      window.setTimeout(() => setToast(''), 3800);
+    }
+  }
 
   useEffect(() => {
     const check = () => setPortrait(window.innerWidth < 760 && window.innerHeight > window.innerWidth);
@@ -94,6 +112,7 @@ export default function App() {
         <button className="icon-button" onClick={() => setPanel('map')} aria-label="Карта"><Map/></button>
         <button className="icon-button" onClick={() => setSound(!sound)} aria-label="Звук">{sound ? <Volume2/> : <VolumeX/>}</button>
         <button className="icon-button" onClick={() => setPanel('settings')} aria-label="Настройки"><Settings/></button>
+        <button className="icon-button" onClick={toggleFullscreen} aria-label={isFullscreen ? "Выйти из полного экрана" : "Полный экран"}>{isFullscreen ? <Minimize2/> : <Maximize2/>}</button>
       </header>
       <div className="crosshair">+</div>
       <div className="objective"><small>ТЕКУЩАЯ ЗАДАЧА · {stage + 1}/3</small><strong>{missions[stage].title}</strong><span>{missions[stage].detail}</span></div>
