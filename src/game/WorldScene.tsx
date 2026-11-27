@@ -1,6 +1,6 @@
 import { useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Environment, Sky } from '@react-three/drei';
+import { Sky } from '@react-three/drei';
 import * as THREE from 'three';
 
 export type ControlsState = { forward: number; strafe: number; lookX: number; lookY: number };
@@ -52,7 +52,7 @@ export function WorldScene({controls,onNearby}:Props) {
  return <>
   <color attach="background" args={['#aebbb8']}/><fog attach="fog" args={['#aebbb8',42,145]}/>
   <Sky sunPosition={[35,14,-20]} turbidity={8.5} rayleigh={1.6}/><ambientLight intensity={.72}/><hemisphereLight args={['#c7d4d0','#59634f',.75]}/>
-  <directionalLight position={[25,38,15]} intensity={2} castShadow shadow-mapSize={[2048,2048]}/><Environment preset="forest"/>
+  <directionalLight position={[25,38,15]} intensity={2} castShadow shadow-mapSize={[1024,1024]}/>
   <mesh rotation={[-Math.PI/2,0,0]} receiveShadow><planeGeometry args={[220,220]}/><meshStandardMaterial color="#66735b" roughness={1}/></mesh>
   <Road/><House position={[-10,0,-12]} scale={1.05} tone="#77776d"/><House position={[10,0,-24]} scale={1.15} tone="#817b6b" greenDoor/><House position={[19,0,-5]} scale={.85} tone="#666e68"/><House position={[-22,0,3]} scale={.92} tone="#827d70"/><House position={[-18,0,-38]} scale={1.2} tone="#777d72"/><House position={[24,0,-43]} scale={1.05} tone="#746f62"/>
   <Fence from={[-15,0,-6]} length={13}/><Fence from={[13,0,-30]} length={12}/><Fence from={[-27,0,9]} length={10}/>
