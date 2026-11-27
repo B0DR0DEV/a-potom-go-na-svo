@@ -1,107 +1,96 @@
-import { useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, PointerLockControls, Sky } from '@react-three/drei';
-import * as THREE from 'three';
-import { Compass, DoorOpen, Gamepad2, Settings, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { Compass, DoorOpen, Gamepad2, Settings, Volume2, VolumeX, Backpack, MessageCircle, Map, X } from 'lucide-react';
+import { WorldScene, type ControlsState } from './game/WorldScene';
 
-type Vec3 = [number, number, number];
-
-function Building({ position, scale = 1, color = '#77766b' }: { position: Vec3; scale?: number; color?: string }) {
-  return <group position={position} scale={scale}>
-    <mesh position={[0, 1.35, 0]} castShadow receiveShadow>
-      <boxGeometry args={[4, 2.7, 3.6]} />
-      <meshStandardMaterial color={color} roughness={0.92} />
-    </mesh>
-    <mesh position={[0, 2.95, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-      <coneGeometry args={[3.05, 1.25, 4]} />
-      <meshStandardMaterial color="#373b36" roughness={1} />
-    </mesh>
-    {[-1.15, 1.15].map((x) => <mesh key={x} position={[x, 1.55, 1.82]}>
-      <boxGeometry args={[0.72, 0.9, 0.08]} />
-      <meshStandardMaterial color="#293d42" metalness={0.18} roughness={0.3} />
-    </mesh>)}
-    <mesh position={[0, 0.9, 1.86]}>
-      <boxGeometry args={[0.9, 1.8, 0.12]} />
-      <meshStandardMaterial color="#42382c" roughness={0.9} />
-    </mesh>
-  </group>;
-}
-
-function Pine({ position, height }: { position: Vec3; height: number }) {
-  return <group position={position}>
-    <mesh position={[0, height * 0.25, 0]} castShadow>
-      <cylinderGeometry args={[0.13, 0.2, height * 0.5, 7]} />
-      <meshStandardMaterial color="#493b2b" roughness={1} />
-    </mesh>
-    {[0.48, 0.68, 0.86].map((level, i) => <mesh key={level} position={[0, height * level, 0]} castShadow>
-      <coneGeometry args={[height * (0.24 - i * 0.045), height * 0.48, 7]} />
-      <meshStandardMaterial color={i === 1 ? '#34483b' : '#263b32'} roughness={1} />
-    </mesh>)}
-  </group>;
-}
-
-function World({ onReady }: { onReady: () => void }) {
-  const player = useRef<THREE.Group>(null);
-  const clock = useRef(0);
-  const trees = useMemo(() => Array.from({ length: 90 }, (_, i) => {
-    const angle = i * 2.399;
-    const radius = 15 + (i % 11) * 2.7;
-    return { position: [Math.cos(angle) * radius, 0, Math.sin(angle) * radius] as Vec3, height: 5 + (i % 5) * 0.7 };
-  }), []);
-  useFrame((_, delta) => {
-    clock.current += delta;
-    if (player.current) player.current.position.y = Math.sin(clock.current * 1.6) * 0.018;
-  });
-  return <>
-    <color attach="background" args={['#aab7b6']} />
-    <fog attach="fog" args={['#aab7b6', 28, 105]} />
-    <Sky sunPosition={[30, 12, -20]} turbidity={8} rayleigh={1.7} />
-    <ambientLight intensity={0.75} />
-    <directionalLight position={[25, 35, 12]} intensity={2.1} castShadow shadow-mapSize={[2048, 2048]} />
-    <Environment preset="forest" />
-    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={[240, 240]} />
-      <meshStandardMaterial color="#66745d" roughness={1} />
-    </mesh>
-    <gridHelper args={[240, 80, '#77816e', '#707a68']} position={[0, 0.015, 0]} />
-    <Building position={[-8, 0, -11]} scale={1.2} color="#77756a" />
-    <Building position={[7, 0, -22]} scale={0.9} color="#777e78" />
-    <Building position={[19, 0, -5]} scale={1.05} color="#686d68" />
-    <Building position={[-22, 0, 2]} scale={0.85} color="#817a6a" />
-    {trees.map((tree, i) => <Pine key={i} position={tree.position} height={tree.height} />)}
-    <group ref={player} onUpdate={() => { if (clock.current < 0.1) onReady(); }} />
-    <PointerLockControls />
-  </>;
-}
+type Stage = 0 | 1 | 2;
+const missions = [
+  { title: 'Осмотрись вокруг', detail: 'Подойди к человеку возле старого дома.' },
+  { title: 'Поговори с местным', detail: 'Узнай, где находится медицинский пункт.' },
+  { title: 'Доберись до пункта', detail: 'Найди дом с зелёной дверью и осмотри его.' }
+];
 
 export default function App() {
   const [screen, setScreen] = useState<'menu' | 'game'>('menu');
   const [sound, setSound] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [stage, setStage] = useState<Stage>(0);
+  const [nearNpc, setNearNpc] = useState(false);
+  const [nearHouse, setNearHouse] = useState(false);
+  const [panel, setPanel] = useState<'none' | 'inventory' | 'map' | 'settings'>('none');
+  const [toast, setToast] = useState('');
+  const controls = useRef<ControlsState>({ forward: 0, strafe: 0, lookX: 0, lookY: 0 });
+  const lookPointer = useRef<{x:number;y:number}|null>(null);
+  const [portrait, setPortrait] = useState(false);
+
+  useEffect(() => {
+    const check = () => setPortrait(window.innerWidth < 760 && window.innerHeight > window.innerWidth);
+    check(); window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  function interact() {
+    if (stage === 0 && nearNpc) { setStage(1); setToast('Местный: «Медпункт дальше по дороге. Ищи дом с зелёной дверью.»'); }
+    else if (stage === 1 && nearHouse) { setStage(2); setToast('Ты нашёл нужное место. Осмотрись внутри — продолжение истории появится в следующей главе.'); }
+    else if (stage === 2 && nearHouse) setToast('Ты осмотрел помещение. Следующая глава появится в обновлении.');
+    else setToast('Подойди ближе к отмеченному персонажу или зданию.');
+    window.setTimeout(() => setToast(''), 3800);
+  }
+
+  useEffect(() => {
+    if (screen !== 'game') return;
+    const down = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' '].includes(key)) e.preventDefault();
+      if (key === 'w' || key === 'arrowup') controls.current.forward = 1;
+      if (key === 's' || key === 'arrowdown') controls.current.forward = -1;
+      if (key === 'a' || key === 'arrowleft') controls.current.strafe = -1;
+      if (key === 'd' || key === 'arrowright') controls.current.strafe = 1;
+      if (key === 'e') interact();
+      if (key === 'escape') setPanel(p => p === 'none' ? 'settings' : 'none');
+    };
+    const up = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      if (key === 'w' || key === 's' || key === 'arrowup' || key === 'arrowdown') controls.current.forward = 0;
+      if (key === 'a' || key === 'd' || key === 'arrowleft' || key === 'arrowright') controls.current.strafe = 0;
+    };
+    window.addEventListener('keydown', down); window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, [screen, stage, nearNpc, nearHouse]);
+
+  const canInteract = (stage === 0 && nearNpc) || (stage > 0 && nearHouse);
   return <main className="app-shell">
-    <div className="world-backdrop"><Canvas shadows camera={{ position: [0, 2.1, 7], fov: 68 }} dpr={[1, 1.6]}>
-      <World onReady={() => setLoading(false)} />
+    <div className="world-backdrop"><Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 1.7, 9], fov: 72 }}>
+      <WorldScene controls={controls} stage={stage} onNearby={(npc, house) => { setNearNpc(npc); setNearHouse(house); }} />
     </Canvas></div>
     {screen === 'menu' ? <section className="menu-screen">
-      <div className="topline"><span className="status-dot" /> <span>ПРОЕКТ В РАЗРАБОТКЕ</span><span className="topline-right">BUILD 0.1.0 · PRE-ALPHA</span></div>
+      <div className="topline"><span className="status-dot" /><span>СЮЖЕТНОЕ ПРИКЛЮЧЕНИЕ</span><span className="topline-right">BUILD 0.2.0 · EARLY ACCESS</span></div>
       <div className="menu-content">
-        <div className="eyebrow">АТМОСФЕРНОЕ СЮЖЕТНОЕ ПРИКЛЮЧЕНИЕ</div>
+        <div className="eyebrow">НЕОБЫЧНАЯ ИСТОРИЯ В НЕОБЫЧНОМ МЕСТЕ</div>
         <h1>A POTOM<br/><em>GO NA SVO</em></h1>
-        <p className="subtitle">История начинается с одного неправильного клика.</p>
+        <p className="subtitle">Один клик. Незнакомое место. Очень странный день.</p>
         <div className="menu-actions">
-          <button className="primary-button" onClick={() => setScreen('game')}><Gamepad2 size={18}/> НАЧАТЬ ИССЛЕДОВАНИЕ</button>
+          <button className="primary-button" onClick={() => setScreen('game')}><Gamepad2 size={18}/> НАЧАТЬ ИСТОРИЮ</button>
           <button className="secondary-button" onClick={() => setScreen('game')}><DoorOpen size={18}/> ПРОДОЛЖИТЬ</button>
-          <button className="secondary-button" onClick={() => setScreen('game')}><Compass size={18}/> СОВМЕСТНАЯ ИГРА <span className="soon">СКОРО</span></button>
+          <button className="secondary-button" onClick={() => setToast('Совместные комнаты появятся после подключения серверной части.')}><Compass size={18}/> СОВМЕСТНАЯ ИГРА <span className="soon">СКОРО</span></button>
         </div>
       </div>
-      <div className="bottomline"><span>ОДИНОЧНАЯ ИСТОРИЯ · ОТКРЫТЫЙ МИР</span><span>WASD / TOUCH · 3D</span></div>
+      <div className="bottomline"><span>ОДИНОЧНАЯ ИСТОРИЯ · ИССЛЕДОВАНИЕ МИРА</span><span>WASD / TOUCH · 3D</span></div>
     </section> : <section className="game-hud">
-      <header><div className="hud-brand">A POTOM <b>GO NA SVO</b></div><div className="hud-location">НЕИЗВЕСТНАЯ МЕСТНОСТЬ <span>·</span> 08:42</div><button className="icon-button" onClick={() => setSound(!sound)} aria-label="Звук">{sound ? <Volume2/> : <VolumeX/>}</button><button className="icon-button" onClick={() => setScreen('menu')} aria-label="Настройки"><Settings/></button></header>
+      <header><div className="hud-brand">A POTOM <b>GO NA SVO</b></div><div className="hud-location">ОКРАИНА ПОСЁЛКА <span>·</span> 08:42</div>
+        <button className="icon-button" onClick={() => setPanel('inventory')} aria-label="Инвентарь"><Backpack/></button>
+        <button className="icon-button" onClick={() => setPanel('map')} aria-label="Карта"><Map/></button>
+        <button className="icon-button" onClick={() => setSound(!sound)} aria-label="Звук">{sound ? <Volume2/> : <VolumeX/>}</button>
+        <button className="icon-button" onClick={() => setPanel('settings')} aria-label="Настройки"><Settings/></button>
+      </header>
       <div className="crosshair">+</div>
-      <div className="objective"><small>ТЕКУЩАЯ ЗАДАЧА</small><strong>Осмотрись вокруг</strong><span>Исследуй территорию и найди дорогу.</span></div>
-      <div className="interaction-hint">Кликни по экрану, чтобы захватить курсор · WASD — перемещение</div>
-      <div className="mobile-controls"><button onClick={() => {}}>▲</button><button onClick={() => {}}>◀</button><button onClick={() => {}}>▼</button><button onClick={() => {}}>▶</button></div>
+      <div className="objective"><small>ТЕКУЩАЯ ЗАДАЧА · {stage + 1}/3</small><strong>{missions[stage].title}</strong><span>{missions[stage].detail}</span></div>
+      <div className="interaction-hint">WASD — движение · мышь / свайп — обзор</div>
+      {canInteract && <button className="interact-button" onClick={interact}><MessageCircle size={17}/> ВЗАИМОДЕЙСТВОВАТЬ <kbd>E</kbd></button>}
+      <div className="touch-left" onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); const r=e.currentTarget.getBoundingClientRect(); controls.current.strafe=Math.max(-1,Math.min(1,(e.clientX-r.left-r.width/2)/(r.width/2))); controls.current.forward=Math.max(-1,Math.min(1,-(e.clientY-r.top-r.height/2)/(r.height/2))); }} onPointerMove={e => { if(e.buttons){const r=e.currentTarget.getBoundingClientRect();controls.current.strafe=Math.max(-1,Math.min(1,(e.clientX-r.left-r.width/2)/(r.width/2)));controls.current.forward=Math.max(-1,Math.min(1,-(e.clientY-r.top-r.height/2)/(r.height/2)));}}} onPointerUp={() => {controls.current.forward=0;controls.current.strafe=0;}} onPointerCancel={() => {controls.current.forward=0;controls.current.strafe=0;}}><span>MOVE</span></div>
+      <div className="touch-look" onPointerDown={e => {e.currentTarget.setPointerCapture(e.pointerId);lookPointer.current={x:e.clientX,y:e.clientY};}} onPointerMove={e => {if(lookPointer.current){controls.current.lookX+=e.clientX-lookPointer.current.x;controls.current.lookY+=e.clientY-lookPointer.current.y;lookPointer.current={x:e.clientX,y:e.clientY};}}} onPointerUp={() => {lookPointer.current=null;}} onPointerCancel={() => {lookPointer.current=null;}}><span>LOOK</span></div>
+      {panel !== 'none' && <div className="panel-shade"><div className="game-panel"><button className="panel-close" onClick={() => setPanel('none')}><X/></button><small>МЕНЮ ИГРОКА</small><h2>{panel === 'inventory' ? 'Инвентарь' : panel === 'map' ? 'Карта местности' : 'Настройки'}</h2>{panel === 'inventory' ? <p>Пока что рюкзак пуст. Найденные предметы будут появляться здесь.</p> : panel === 'map' ? <p>Ты находишься на окраине небольшого посёлка. Исследуй дорогу и ближайшие здания.</p> : <p>Звук: {sound ? 'включён' : 'выключен'}<br/>Графика: сбалансированная<br/>Управление: клавиатура / сенсорный экран</p>}</div></div>}
+      {toast && <div className="toast"><MessageCircle size={16}/>{toast}</div>}
+      {portrait && <div className="rotate-hint">Для удобной игры поверни устройство горизонтально.</div>}
     </section>}
-    {loading && <div className="loading-label">ЗАГРУЗКА ОКРУЖЕНИЯ…</div>}
   </main>;
 }
