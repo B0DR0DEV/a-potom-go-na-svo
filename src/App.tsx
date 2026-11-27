@@ -1,9 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Compass, DoorOpen, Gamepad2, Settings, Volume2, VolumeX, Backpack, MessageCircle, Map, X } from 'lucide-react';
 import { WorldScene, type ControlsState } from './game/WorldScene';
 
 type Stage = 0 | 1 | 2;
+
+class SceneErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('3D scene failed to initialize:', error, info.componentStack);
+  }
+  render() {
+    if (this.state.failed) return <div className="scene-fallback" aria-label="3D-сцена временно недоступна"><span>3D-СЦЕНА НЕ ЗАГРУЗИЛАСЬ</span><small>Интерфейс доступен. Обнови страницу или проверь поддержку WebGL.</small></div>;
+    return this.props.children;
+  }
+}
+
 const missions = [
   { title: 'Осмотрись вокруг', detail: 'Подойди к человеку возле старого дома.' },
   { title: 'Поговори с местным', detail: 'Узнай, где находится медицинский пункт.' },
@@ -59,9 +72,9 @@ export default function App() {
 
   const canInteract = (stage === 0 && nearNpc) || (stage > 0 && nearHouse);
   return <main className="app-shell">
-    <div className="world-backdrop"><Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 1.7, 9], fov: 72 }}>
+    <div className="world-backdrop"><SceneErrorBoundary><Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 1.7, 9], fov: 72 }} gl={{ antialias: true, powerPreference: 'high-performance' }}>
       <WorldScene controls={controls} onNearby={(npc, house) => { setNearNpc(npc); setNearHouse(house); }} />
-    </Canvas></div>
+    </Canvas></SceneErrorBoundary></div>
     {screen === 'menu' ? <section className="menu-screen">
       <div className="topline"><span className="status-dot" /><span>СЮЖЕТНОЕ ПРИКЛЮЧЕНИЕ</span><span className="topline-right">BUILD 0.2.0 · EARLY ACCESS</span></div>
       <div className="menu-content">
